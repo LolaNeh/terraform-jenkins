@@ -2,7 +2,10 @@
 resource "aws_security_group" "jenkins_sg" {
   name        = "jenkins-sg"
   description = "Allow TLS inbound traffic"
-  vpc_id      = module.vpc.vpc_id
+#   vpc_id      = module "vpc" {
+#     source = "terraform-aws-modules/vpc/aws"
+    
+#   }
 
   ingress {
     description      = "TLS from VPC for http"
@@ -47,7 +50,7 @@ resource "tls_private_key" "EC2_key" {
 # creating the keypair in aws
 resource "aws_key_pair" "EC2_key" {
   key_name   = "my-EC2-keypair"
-  public_key = tls_private_key.EC2-keypair.public_key_openssh
+  public_key = tls_private_key.EC2_key.public_key_openssh
 }
 
 # Save the .pem file locally for remote connection
@@ -58,11 +61,11 @@ resource "local_file" "ssh_key" {
 
 #ec2 instance provisions
 resource "aws_instance" "jenkins_instance" {
-  ami           = "ami-08d5c2c27495d734a"
+  ami           = "ami-0bb4c991fa89d4b9b"
   instance_type = "t2.micro"
   key_name = aws_key_pair.EC2_key.key_name
   security_groups = [aws_security_group.jenkins_sg.name] 
-  subnet_id = module.vpc.public_subnets[0]
+  #subnet_id = module.vpc.public_subnets[0]
   associate_public_ip_address = true
   user_data = file ("jenkins.sh")
 #   user_data = <<-EOF
