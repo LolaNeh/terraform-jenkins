@@ -9,7 +9,7 @@ terraform {
 
 provider "aws" {
   # Configuration options
-  region = "us-west-1"
+  region = "us-east-1"
 }
 resource "aws_s3_bucket" "s3-terraform" {
   bucket = "my-s3-terraform-bucket10923"

@@ -2,10 +2,10 @@
 resource "aws_security_group" "jenkins_sg" {
   name        = "jenkins-sg"
   description = "Allow TLS inbound traffic"
-  vpc_id      = "vpc-06848deca49c9e2b1"
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description      = "TLS from VPC"
+    description      = "TLS from VPC for http"
     from_port        = 8080
     to_port          = 8080
     protocol         = "tcp"
@@ -14,38 +14,57 @@ resource "aws_security_group" "jenkins_sg" {
   }
 
   ingress {
-    description      = "TLS from VPC"
+    description      = "TLS from VPC for ssh"
     from_port        = 22
     to_port          = 22
     protocol         = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
 
   }
-  ingress {
-    description      = "TLS from VPC"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "tcp"
+#   ingress {
+#     description      = "TLS from VPC"
+#     from_port        = 443
+#     to_port          = 443
+#     protocol         = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+
+  #}
+  egress {
+    #description      = "TLS from VPC"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
     cidr_blocks = ["0.0.0.0/0"]
 
   }
-  ingress {
-    description      = "TLS from VPC"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+}
+# Generate a secure key using rsa algorithm
+resource "tls_private_key" "EC2_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
 
-  }
+}
+# creating the keypair in aws
+resource "aws_key_pair" "EC2_key" {
+  key_name   = "my-EC2-keypair"
+  public_key = tls_private_key.EC2-keypair.public_key_openssh
+}
+
+# Save the .pem file locally for remote connection
+resource "local_file" "ssh_key" {
+    filename = "jenkins.pem"
+    content = tls_private_key.EC2_key.private_key_pem
 }
 
 #ec2 instance provisions
 resource "aws_instance" "jenkins_instance" {
   ami           = "ami-08d5c2c27495d734a"
-  instance_type = "t2.small"
-  subnet_id = "subnet-004813b02e5e26cf3"
-  associate_public_ip_address = true
+  instance_type = "t2.micro"
+  key_name = aws_key_pair.EC2_key.key_name
   security_groups = [aws_security_group.jenkins_sg.name] 
+  subnet_id = module.vpc.public_subnets[0]
+  associate_public_ip_address = true
+  user_data = file ("jenkins.sh")
 #   user_data = <<-EOF
 #               #!/bin/bash -x
 #               sudo yum update -y
@@ -66,22 +85,10 @@ resource "aws_instance" "jenkins_instance" {
   #security_groups_names = [aws_security_group.jenkins_sg.name] 
   tags = {
     Name = "Jenkins Server"
+    Env ="Dev"
   }
   
 }
-resource "tls_private_key" "EC2-keypair" {
-  algorithm = "RSA"
-  rsa_bits  = 2048
-
-}
-
-module "key_pair" {
-  source = "terraform-aws-modules/key-pair/aws"
-  key_name   = "my-EC2-keypair"
-  public_key = tls_private_key.EC2-keypair.public_key_openssh
-}
-
-
 
 # print the ssh remote connection command
 output "jenkins_public_ip" {
